@@ -1,0 +1,21 @@
+[gd_scene load_steps=3 format=2]
+
+[sub_resource type="CapsuleMesh" id=1]
+
+[sub_resource type="BoxShape" id=2]
+extents = Vector3( 1.83789, 1, 1.778 )
+
+[node name="zone_select" type="Spatial"]
+
+[node name="zones_select" type="MeshInstance" parent="."]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 35.3442, 4.06524, -58.7175 )
+mesh = SubResource( 1 )
+skeleton = NodePath("../..")
+
+[node name="Area" type="Area" parent="."]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 35.0343, 4.23154, -58.4796 )
+monitorable = false
+
+[node name="CollisionShape" type="CollisionShape" parent="Area"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.188889 )
+shape = SubResource( 2 )
