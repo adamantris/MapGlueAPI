@@ -1,0 +1,28 @@
+id = "adamantris.MapGlueAPI"
+name = "MapGlueAPI"
+description = "Glues modded maps and vanilla map additions to the main map "
+version = "0.0.4"
+homepage = "https://github.com/adamantris/MapGlueAPI"
+author = "adamantris"
+
+icon = "icon-full.png"
+readme = "README.md"
+#changelog = "CHANGELOG.md" # optional
+
+ # optional
+extra_files = [
+
+]
+
+# both are optional here, pick what you want
+[project]
+#csharp = "./scriptmod/adamantris.Cave.csproj"
+godot = "./project.godot"
+
+[[dependencies]]
+thunderstore_version = "NotNet-GDWeave-2.0.12"
+
+[[dependencies]]
+thunderstore_version = "uwp-Unofficial_Webfishing_Patch-1.2.1"
+
+# example dependency
