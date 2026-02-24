@@ -1,7 +1,7 @@
 id = "adamantris.MapGlueAPI"
 name = "MapGlueAPI"
 description = "Glues modded maps and vanilla map additions to the main map "
-version = "0.0.4"
+version = "0.0.7"
 homepage = "https://github.com/adamantris/MapGlueAPI"
 author = "adamantris"
 

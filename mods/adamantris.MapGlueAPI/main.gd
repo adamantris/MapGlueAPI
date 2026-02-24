@@ -3,6 +3,8 @@ extends Node
 
 # blacklisting zones that are most likely copied from vanilla
 const vanilla_zones_blacklist := ["tent_zone", "hub_building_zone", "aquarium_zone", "tutorial_zone", "island_tiny_zone", "island_med_zone", "island_big_zone", "void_zone"]
+const zones_pos = Vector3(0, 1000, 0) # off to nirvana
+const zone_pos = 7
 
 onready var zone_select = preload("res://mods/adamantris.MapGlueAPI/zone_select.tscn")
 onready var zone_ui = preload("res://mods/adamantris.MapGlueAPI/zone_UI.tscn")
@@ -10,6 +12,7 @@ onready var zone_container = preload("res://mods/adamantris.MapGlueAPI/zone_cont
 
 var lure_node
 var vanilla_zone_node
+var player
 
 var packed_maps := {}
 
@@ -23,6 +26,7 @@ var zone_prefixes := []
 
 func _ready():
 	get_tree().connect("node_added", self, "on_node_add")
+	
 	# letting every other mod load in first
 	yield(get_tree().create_timer(1), "timeout")
 	
@@ -32,14 +36,9 @@ func _ready():
 	
 	elif is_instance_valid(lure_node) == false:
 		print("[MapGlue] No valid Lure instance found.")
-		
-	else:
-		print("[MapGlue] This log entry shouldn't appear under any circumstances. Please file a bug report on GitHub!")
-	
 
 
 func handle_lure_maps():
-	
 	var instanced_zone_ui = zone_ui.instance()
 	self.add_child(instanced_zone_ui)
 	print("[MapGlue] Lure found, waiting for one second to let everything else load in first")
@@ -87,8 +86,20 @@ func handle_lure_maps():
 			
 		instanced_map.queue_free()
 
+# this is all cringe
 func on_node_add(node):
+	
+	# we need a reference to the player for zone changing
+	if "actor_type" in node and node.actor_type == "player" and node.owner_id == Network.STEAM_ID:
+		player = get_node("/root/world/Viewport/main/entities/player")
+	
+	# for connecting signals
+	if node.name == "spawn" and node.get_class() == "Button" and "playerhud" in str(node.get_path()):
+		node.connect("pressed", self, "on_respawn_pressed")
+		
+	# for adding the teleporter to the main zone
 	if node.name == "zones" and str(node.get_path()).begins_with("/root/world"):
+		print("[MapGlue] new world found, attaching mod zones...")
 		vanilla_zone_node = node
 		
 		var select_instance = zone_select.instance()
@@ -96,24 +107,16 @@ func on_node_add(node):
 		var select_area = select_instance.get_node("Area")
 		select_area.connect("body_entered", self, "on_body_enter")
 		
-		var origin_offset_mult = 1
-		for zone_entry in mod_zones.keys():
-			var new_origin = Vector3(0, 200 * origin_offset_mult, 0)
-			var mod_zone: PackedScene = mod_zones.get(zone_entry)
-			var instanced_mod_zone = mod_zone.instance()
-
-			instanced_mod_zone.global_transform.origin = new_origin
-			vanilla_zone_node.add_child(instanced_mod_zone)
-			instanced_mod_zone.scale = zone_scales.get(zone_entry)
-			origin_offset_mult += 1
 			
 	# i am not proud of what follows
 	elif "zone_id" in node and "spawn_id" in node:
-		var node_path = str(node.get_path())
-		var split_string_array = node_path.split("/", false)
+		var node_path = node.get_path()
 		
-		# our zones are always at spot 7 (0-indexed)
-		var added_zone_name = split_string_array[7]
+		if node_path.get_name_count() < zone_pos + 1: #because name count isnt 0-indexed which makes sense
+			return
+		
+		var added_zone_name = node_path.get_name(zone_pos)
+
 		
 		# some mod map portals seem to connect to a vanilla zone, for which why the third "or" instance is getting checked
 		if added_zone_name in vanilla_zones_blacklist or added_zone_name == "main_zone" or node.zone_id in vanilla_zones_blacklist:
@@ -130,8 +133,36 @@ func on_body_enter(body):
 		get_node("zone_UI/CanvasLayer/PopupPanel").popup()
 		
 func tele_button_pressed(destination: String):
-	var player = get_node("/root/world/Viewport/main/entities/player")
+	print("[MapGlue] A teleport button has been pressed, instancing map...")
+	
+	var to_match
+	for prefix in zone_prefixes:
+		if destination.match(prefix + "*"):
+			to_match = prefix
+			break
+			
+	for zone_candidate in mod_zones.keys():
+		if zone_candidate.match(to_match + "*"):
+			var mod_zone_instance = mod_zones.get(zone_candidate).instance()
+			vanilla_zone_node.add_child(mod_zone_instance)
+			mod_zone_instance.global_transform.origin += zones_pos
+	
+	
 	player.world._enter_zone(destination, -1)
 	var zone_spawn_point = vanilla_zone_node.get_node(destination + "/tele_marker")
 	player.global_transform.origin = zone_spawn_point.global_transform.origin
 	
+func on_respawn_pressed():
+	print("[MapGlue] Respawn button pressed, removing mod zones...")
+	var free_queue = []
+	for child in vanilla_zone_node.get_children():
+		if child.name in vanilla_zones_blacklist or child.name == "main_zone":
+			continue
+			
+		elif child.name in mod_zones:
+			free_queue.append(child)
+			
+	yield(get_tree().create_timer(0.4), "timeout") # 0.3 from screentransition + 0.1 to make sure we're back in main zone
+	for queued in free_queue:
+		queued.queue_free()
+
